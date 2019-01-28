@@ -5,13 +5,9 @@ owner: Partners
 
 <strong><%= modified_date %></strong>
 
-This topic describes how to use SnappyData Service for PCF.
-
-##<a id='using'></a> Using SnappyData Service for PCF
-
 This topic describes how developers can interact with a SnappyData cluster on Kubernetes, access the SnappyData Pulse UI dashboard, run queries, and submit SnappyData jobs.
 
-##<a id='interacting'></a> Interacting with SnappyData Cluster on Kubernetes
+##<a id='interacting'></a> Interact with SnappyData Cluster on Kubernetes
 
 You can interact with the SnappyData cluster on Kuberenetes in the same manner as you interact with a SnappyData cluster that runs locally or on-premise. All you require is the host IP address of the locator and the lead with their respective ports numbers.
 
@@ -41,8 +37,7 @@ You can do the following on the SnappyData cluster that is deployed on Kubernete
 
 - [Stop SnappyData Cluster on Kubernetes](#stopkubernetes)
 
-<a id= accesskubernetes> </a> 
-### Access SnappyData Pulse UI Dashboard
+##<a id='accesskubernetes'></a> Access SnappyData Pulse UI Dashboard
 
 SnappyData Pulse is a dashboard that provides a real-time view into cluster members, member logs, resource usage, running Jobs, SQL queries along with performance data. This simple widget based view allows you to navigage easily, visualize, and monitor your cluster. You can monitor the overall status of the cluster as well as the status of each member in the cluster. 
 
@@ -69,8 +64,7 @@ The dashboards on the SnappyData Pulse can be accessed using **snappydata-leader
 
 2.  Type *externalIp:5050* in the browser. Here you must replace `externalip` with the external IP address of the **leader-public** service.</br> For example, use the external IP address displayed in the above output for **leader-public** service as follows:</br>`35.232.102.51:5050`</br>
 
-<a id= jdbckubernetes> </a>
-### Connect SnappyData Using JDBC Driver
+##<a id='jdbckubernetes'></a> Connect SnappyData Using JDBC Driver
 
 For Kubernetes deployments, JDBC clients can connect to SnappyData cluster using the JDBC URL that is derived from the **snappydata-locator-public** service.
 
@@ -98,8 +92,7 @@ To connect to SnappyData using JDBC driver in Kubernetes, do the following:
 
 You can refer to [SnappyData documentation](http://snappydatainc.github.io/snappydata/howto/connect_using_jdbc_driver/) for an example of JDBC program and for instructions on how to obtain JDBC driver using Maven/SBT co-ordinates.
 
-<a id= querykubernetes> </a>
-### Execute Queries Using SnappyData Shell
+##<a id='querykubernetes'></a> Execute Queries Using SnappyData Shell
 
 You  can use SnappyData shell to connect to SnappyData and execute your queries. Connect to one of the pods in the cluster and use the SnappyData Shell. Alternatively, you can download the SnappyData distribution from [SnappyData github releases](https://github.com/SnappyDataInc/snappydata/releases). SnappyData shell need not run within the Kubernetes cluster.
 
@@ -137,8 +130,7 @@ You  can use SnappyData shell to connect to SnappyData and execute your queries.
          1 row inserted/updated/deleted 
         ```
 
-<a id= jobkubernetes> </a>
-### Submit a SnappyData Job
+##<a id='jobkubernetes'></a> Submit a SnappyData Job
 
 Refer to the [How Tos section](http://snappydatainc.github.io/snappydata/howto/run_spark_job_inside_cluster/) in SnappyData documentation to understand how to submit SnappyData jobs.
 However, for submitting a SnappyData job in Kubernetes deployment, you need to use the **snappydata-leader-public** service that exposes port **8090** to run the jobs.
@@ -174,8 +166,7 @@ However, for submitting a SnappyData job in Kubernetes deployment, you need to u
           --lead 35.232.102.51:8090
         ```
        
-<a id= stopkubernetes> </a>
-### Stop SnappyData Cluster on Kubernetes
+##<a id='stopkubernetes'></a> Stop SnappyData Cluster on Kubernetes
 
 To stop the SnappyData cluster on Kubernetes, you must delete the **SnappyData Helm **chart using the `helm delete` command.
 

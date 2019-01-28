@@ -1,5 +1,5 @@
 ---
-title: SnappyData for PCF Release Notes
+title: SnappyData Service for PCF Release Notes
 owner: SnappyData
 ---
 
@@ -7,127 +7,11 @@ owner: SnappyData
 
 **Release Date:** November 7, 2018
 
-Features included in this release:
+The SnappyData Service for Pivotal Cloud Foundry (PCF) is based on SnappyData release version 1.0.2.1. This release is marked as Beta because it represents the first PCF release.
 
-*	Support Spark's HiveServer2 in SnappyData cluster. Enables starting an embedded Spark HiveServer2 on leads in embedded mode.
-*	Provided a default Structured Streaming Sink implementation for SnappyData column and row tables. A Sink property can enable conflation of events with the same key columns. 
-*	Added a **-agent **JVM argument in the launch commands to kill the JVM as soon as Out-of-Memory(OOM) occurs. This is important because the VM sometimes used to crash in unexpected ways later as a side effect of this corrupting internal metadata which later gave restart troubles. 
-*	Allow **NONE** as a valid policy for `server-auth-provider`. Essentially, the cluster can now be configured only for user authentication, and mutual peer to peer authentication of cluster members can be disabled by specifying this property as NONE.
-*	Add support for query hints to force a join type. This may be useful for cases where the result is known to be small, for example, but plan rules cannot determine it.
-*	Allow **deleteFrom** API to work as long as the dataframe contains key columns.
-*	Avoid shuffle when join key columns are a superset of child partitioning.
-*	Added a pooled version of SnappyData JDBC driver for Spark to connect to SnappyData cluster as JDBC data source. 
-*	Added caching for hive catalog lookups. Meta-data queries with large number of tables take quite long because of nested loop joins between **SYSTABLES** and **HIVETABLES** for most meta-data queries. Even if the table numbers were in hundreds, it used to take much time. 
+Click [here](https://snappydatainc.github.io/snappydata/release_notes/release_notes/) to view the features included in the SnappyData 1.0.2.1 release.
 
+Features included in this release are as follows:
 
-Fixed issues in this release:
-
-*	Reset the pool at the end of collect to avoid spillover of low latency pool setting to the latter operations that may not use the CachedDataFrame execution paths. 
-
-*	Fixed: Column added using 'ALTER TABLE ... ADD COLUMN ...' through SnappyData shell does not reflect in spark-shell.   
-
-*	Fixed the occasional failures in serialization using **CachedDataFrame**, if the node is just starting/stopping. Also, fixed a hang in shutdown for cases where hive client close is trying to boot up the node again, waiting on the locks that are taken during the shutdown.
-
-*	Lead and Lag window functions were failing due to incorrect analysis error. 
-
-*	Fixed the **validate-disk-store** tool. It was not getting initialized with registered types. This was required to deserialize byte arrays being read from persisted files.
-
-*	Fix schema in ResultSet metadata. It used to show the default schema **APP** always.
-
-*	Sometimes a false unique constraint violation happened due to removed or destroyed AbstractRegionEntry. Now an attempt is made to remove it from the index and another try is made to put the new value against the index key. 
-
-*	Fix for memory leak in oldEntrieMap leading to **LowMemoryException** and **OutOfMemoryException**. 
-
-Known issues in this release:
-
-* When a table is queried from spark-shell (or from an application that uses smart connector mode) the table metadata is cached on the smart connector side. </br>If this table is dropped from SnappyData embedded cluster (by using snappy-shell, or JDBC application, or a Snappy job), the metadata on the smart connector side stays cached even though catalog has changed (table is dropped). </br>In such cases, the user may see unexpected errors like `org.apache.spark.sql.AnalysisException: Table `SNAPPYTABLE` already exists`  in the smart connector app side. For example, for the `DataFrameWriter.saveAsTable()` API if the same table name that was dropped is used in `saveAsTable()`.
-* When creating a temporary table, the SnappyData catalog is not referred, which means, a temporary table with the same name as that of an existing SnappyData table can be created. Two tables with the same name lead to ambiguity during query execution and can either cause the query to fail or return wrong results. 
-* A disjunctive query (that is, query with two or more predicates joined by an OR clause) with common filter predicates may report performance issues.
-* Data mismatch is observed in queries which are running when some servers are coming up after a failure. Also, the tables on which the queries are running must have set their redundancy to one or more for the issue to be observed.
-* Concurrent putInto/update operations and inserts in column tables with overlapping keys may cause data inconsistency.   
-* When using snappySession.sql() from jobs, Zeppelin etc, if a further transformation is applied on the DataFrame, it may give incorrect results due to plan caching.
-
-##<a id="ver"></a> v1.0.2
-
-**Release Date:** TO DO (Ex. August 1, 2017)
-
-Features included in this release:
-
-*	Introduced an API in snappy session catalog to get Primary Key of Row tables  or Key Columns of Column Tables, as DataFrame. 
-*	Introduced an API in snappy session catalog to get table type as String.
-*	Added support for arbitrary size view definition. It use to fail when view text size went beyond 32k.
-Support for displaying VIEWTEXT for views in SYS.HIVETABLES. 
-For example: Select viewtext from sys.hivetables where tablename = ‘view_name” will give the text with which the view was created.
-*	Added Row level Security feature. Admins can define multiple security policies on tables for different users or LDAP groups.
-*	Auto refresh of UI page. Now the SnappyData UI page gets updated automatically and frequently. Users need not refresh or reload. 
-*	Richer user interface. Added graphs for memory, CPU consumption etc. for last 15 minutes. The user has the ability to see how the cluster health has been for the last 15 minutes instead of just current state.
-*	Total CPU core count capacity of the cluster is now displayed on the UI. 
-*	Bucket count of tables are also displayed now on the user interface.
-*	Support deployment of packages and jars as DDL command. 
-*	Added support for reading maven dependencies using **--packages** option in our job server scripts. 
-*	Changes to procedure **sys.repair_catalog** to execute it on the server (earlier this was run on lead by sending a message to it). This will be useful to repair catalog even when lead is down. 
-*	Added support for **PreparedStatement.getMetadata() JDBC API**. This is on an experimental basis.
-*	Added support for execution of some DDL commands viz CREATE/DROP DISKSTORE, GRANT, REVOKE. CALL procedures from snappy session as well.
-*	Quote table names in all store DDL/DML/query strings to allow for special characters  and keywords in table names.
-*	Spark application with same name cannot be submitted to SnappyData. This has been done so that individual apps can be killed by its name when required.
-*	Users are not allowed to create tables in their own schema based on system property - `snappydata.RESTRICT_TABLE_CREATION`. In some cases it may be required to control use of cluster resources in which case the table creation is done only by authorized owners of schema.
-*	Schema can be owned by an LDAP group also and not necessarily by a single user.
-*	Support for deploying SnappyData on Kubernetes using Helm charts. 
-*	Disk Store Validate tool enhancement. Validation of disk store can find out all the inconsistencies at once.
-*	BINARY data type is same as BLOB data type.
-
-The following performance enhancements are included in SnappyData 1.0.2 version:
-
-*	Fixed concurrent query performance issue by resolving the incorrect output partition choice.  Due to numBucket check, all the partition pruned queries were converted to hash partition with one partition. This was causing an exchange node to be introduced. 
-*	Fixed SnappyData UI becoming unresponsive on LowMemoryException.
-*	Cleaning up tokenization handling and fixes. Main change is addition of the following two separate classes for tokenization: 
-
-	*	**ParamLiteral**
-	*	**TokenLiteral** 
-
-	Both classes extend a common trait **TokenizedLiteral**. Tokenization will always happen independently of plan caching, unless it is explicitly turned  off. 
-
-*	Procedure for smart connector iteration and fixes. Includes fixes for perf issues as noted for all iterators (disk iterator, smart connector and remote iterator).
-
-
-Fixed issues in this release:
-
-*	Fixed incorrect server status shown on the UI. Sometimes due to a race condition for the same member two entries were shown up on the UI. 
-*	Fixed missing SQL tab on SnappyData UI in local mode. 
-*	Fixed few issues related to wrong results for Row tables due to plan caching. 
-*	Skip batch, if the stats row is missing while scanning column values from disk. This was already handled for in-memory batches and the same has been added for on-disk batches. 
-*	Fixes in UI to forbid unauthorized users to view any tab. (ENT-21)
-*	Fixes in SnappyData parser to create inlined table. ‘()’ as optional in some function like ‘current_date()’, ‘current_timestamp()’ etc. 
-*	Consider the current schema name also as part of Caching Key for plan caching. So same query on same table but from different schema should not clash with each other. 
-*	Fix for COLUMN table shown as ROW table on dashboard after LME in data  server. 
-*	Fixed off-heap size for Partitioned Regions, showed on UI. 
-*	Fixed failure when query on view does not fallback to Spark plan in case Code Generation fails. 
-*	Fix invalid decompress call on stats row. Use to fail in run time while scanning column tables.
-*	Fixed negative bucket size with eviction. 
-*	Fixed the issue of incorrect LowMemoryException, even if a lot of memory was left. 
-*	Handled int overflow case in memory accounting. Due to this ExecutionMemoryPool released more memory than it has throws AssertionError.
-*	Fixed the pooled connection not being returned to the pool after authorization check failure which led to unusable cluster.
-*	Fixed different results of nearly identical queries, due to join order. Its due to EXCHANGE hash ordering being different from table partitioning. It will happen for the specific case when query join order is different from partitioning of one of the tables while the other table being joined is partitioned differently. 
-*	Corrected row count updated/inserted in a column table via putInto. 
-*	Fixed the OOM issue due to hive queries. This was a memory leak. Due to this the system became very slow after sometime even if idle.  
-*	Fixed the issue of incomplete plan and query string info in UI due to plan caching changes.
-*	Corrected the logic of existence join.
-*	Sensitive information, like user password, LDAP password etc, which are passed as properties to the cluster are masked on the UI now.
-*	Schema with boolean columns sometimes returned incorrect null values. Fixed. 
-*	Fixed the scenario where break in colocation chain of buckets due to crash led to disk store metadata going bad causing restart failure.
-*	Wrong entry count on restart, if region got closed on a server due to DiskAccessException leading to a feeling of loss of data. Do not let the region close in case of LME. This has been done by not letting non IOException get wrapped in DiskAccessException. 
-*	Fix to avoid hang or delay in stop when **stop** is issued and the component has gone into reconnect cycle. 
-*	Handle joining of new servers better. Avoid ConflictingPersistentDataException when a new server starts before any of the old server start. 
-*	ODBC driver bug fix. Added **EmbedDatabaseMetaData.getTableSchemas**.
-*	Change the order in which backup is taken. Internal DD diskstore of backup is taken first followed by rest of the disk stores. This helps in stream apps which want to store offset of replayable source in snappydata. They can create the offset table backed up by the internal DD store instead of default or custom disk store.
-
-Known issues in this release:
-
-* When a table is queried from spark-shell (or from an application that uses smart connector mode) the table metadata is cached on the smart connector side. </br>If this table is dropped from SnappyData embedded cluster (by using snappy-shell, or JDBC application, or a Snappy job), the metadata on the smart connector side stays cached even though catalog has changed (table is dropped). </br>In such cases, the user may see unexpected errors like `org.apache.spark.sql.AnalysisException: Table `SNAPPYTABLE` already exists`  in the smart connector app side. For example, for the `DataFrameWriter.saveAsTable()` API if the same table name that was dropped is used in `saveAsTable()`.
-* When creating a temporary table, the SnappyData catalog is not referred, which means, a temporary table with the same name as that of an existing SnappyData table can be created. Two tables with the same name lead to ambiguity during query execution and can either cause the query to fail or return wrong results. 
-* A disjunctive query (that is, query with two or more predicates joined by an OR clause) with common filter predicates may report performance issues.
-* Data mismatch is observed in queries which are running when some servers are coming up after a failure. Also, the tables on which the queries are running must have set their redundancy to one or more for the issue to be observed.
-* Concurrent putInto/update operations and inserts in column tables with overlapping keys may cause data inconsistency.   
-* When using snappySession.sql() from jobs, Zeppelin etc, if a further transformation is applied on the DataFrame, it may give incorrect results due to plan caching.
 
 
