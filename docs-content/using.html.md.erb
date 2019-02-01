@@ -5,335 +5,59 @@ owner: Partners
 
 <strong><%= modified_date %></strong>
 
-This topic describes how developers can interact with a SnappyData cluster on Kubernetes, access the SnappyData Pulse UI dashboard, run queries, and submit SnappyData jobs.
+This topic describes how to create and bind a service instance of SnappyData.
 
-##<a id='interacting'></a> Interact with SnappyData Cluster on Kubernetes
+##<a id='createserinst'></a> Create and Bind a Service Instance Using the cf CLI
 
-You can interact with the SnappyData cluster on Kuberenetes in the same manner as you interact with a SnappyData cluster that runs locally or on-premise. All you require is the host IP address of the locator and the lead with their respective ports numbers.
+To create a SnappyData service instance using the cf CLI, perform the following steps:
 
-To find the IP addresses and port numbers of the SnappyData processes, use command:
-`kubectl get svc --namespace=snappy`. 
+1.	Set your API endpoint to the Cloud Controller of your deployment.
 
-In the [output](#output), the following three services of type **LoadBalancer** are shown:
+		$ cf api api.YOUR-SYSTEM-DOMAIN
+		Setting api endpoint to api.YOUR-SYSTEM-DOMAIN...
+		OK
+		API endpoint:  https://api.YOUR-SYSTEM-DOMAIN (API version: 2.59.0)
+		Not logged in. Use 'cf login' to log in.
+		
+2.	Login to your deployment and select an org and a space.
 
-+   **snappydata-leader-public**
-+   **snappydata-locator-public** 
-+   **snappydata-server-public**    
+		$ cf login
+		API endpoint: https://api.YOUR-SYSTEM-DOMAIN
+		Email> user@example.com
+		Password>
 
-These services expose the endpoints for locator, lead, and server respectively. The services have an external IP addresses assigned and therefore can be accessed from outside Kubernetes. The remaining services that do not have external IP addresses are those that are created for internal use.
+3.	List the services and locate the SnappyData service.
 
-+   **snappydata-leader-public** service exposes port **5050** for SnappyData Pulse and port **8090** to accept [SnappyData jobs](#jobkubernetes).</br>
-+   **snappydata-locator-public** service exposes port **1527** to accept [JDBC/ODBC connections](#jdbckubernetes).
+		$ cf marketplace
+		Getting services from marketplace in org system / space apps-manager as admin...
+		OK
 
-You can do the following on the SnappyData cluster that is deployed on Kubernetes:
 
-- [Access SnappyData Pulse UI Dashboard](#accesskubernetes)
+		service          plans                       description
+		SnappyData       snappy_plan1, ...           Service Broker implementation for SnappyData database
 
-- [Connect SnappyData using JDBC Driver](#jdbckubernetes)
 
-- [Execute Queries](#querykubernetes)
 
-- [Submit a SnappyData Job](#jobkubernetes)
+		TIP:  Use 'cf marketplace -s SERVICE' to view descriptions of individual plans of a given service.
 
-- [Stop SnappyData Cluster on Kubernetes](#stopkubernetes)
+4.	Create an instance of the SnappyData service, specifying both the name of the service plan and the name of the service instance.
 
-##<a id='accesskubernetes'></a> Access SnappyData Pulse UI Dashboard
+		$ cf create-service SnappyData YOUR-SERVICE-PLAN SNAPPY-Instance
 
-SnappyData Pulse is a dashboard that provides a real-time view into cluster members, member logs, resource usage, running Jobs, SQL queries along with performance data. This simple widget based view allows you to navigage easily, visualize, and monitor your cluster. You can monitor the overall status of the cluster as well as the status of each member in the cluster. 
+5.	Bind the instance to your application.
 
-The dashboards on the SnappyData Pulse can be accessed using **snappydata-leader-public** service. To access SnappyData Pulse in Kubernetes, do the following:
+		$ cf bind-service snappy-app SNAPPY-Instance
+		Binding service SNAPPY-Instance to app snappy-app in org example / space development as user@example.com...
+		OK
+		TIP: Use 'cf restage snappy-app' to ensure your env variable changes take effect
 
-1. Check the SnappyData services running in the Kubernetes cluster.</br>`kubectl get svc --namespace=snappy`</br> 
+6.	Finally restart the app so that the access details of the service are available to it via the environment variable **VCAP_SERVICES**.
 
-        ```
-        # check the SnappyData services running in K8S cluster
-        kubectl get svc --namespace=snappy
-
-        # This displays an output as follows:
-
-        NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                                        AGE
-        snappydata-leader           ClusterIP      None            <none>           5050/TCP                                       5m
-        snappydata-leader-public    LoadBalancer   10.51.255.175   35.232.102.51    5050:31964/TCP,8090:32700/TCP,3768:32575/TCP   5m
-        snappydata-locator          ClusterIP      None            <none>           10334/TCP,1527/TCP                             5m
-        snappydata-locator-public   LoadBalancer   10.51.241.224   104.198.47.162   1527:31957/TCP                                 5m
-        snappydata-server           ClusterIP      None            <none>           1527/TCP                                       5m
-        snappydata-server-public    LoadBalancer   10.51.248.27    35.232.16.4      1527:31853/TCP                                 5m
-
-        ```
-    The output displays the external IP address of the **snappydata-leader-public** service. 
-
-2.  Type *externalIp:5050* in the browser. Here you must replace `externalip` with the external IP address of the **leader-public** service.</br> For example, use the external IP address displayed in the above output for **leader-public** service as follows:</br>`35.232.102.51:5050`</br>
-
-##<a id='jdbckubernetes'></a> Connect SnappyData Using JDBC Driver
-
-For Kubernetes deployments, JDBC clients can connect to SnappyData cluster using the JDBC URL that is derived from the **snappydata-locator-public** service.
-
-To connect to SnappyData using JDBC driver in Kubernetes, do the following:
-
-1.	Check the SnappyData services running in Kubernetes cluster.</br>`kubectl get svc --namespace=snappy`</br>
-
-        ```
-        # check the SnappyData services running in K8S cluster
-        kubectl get svc --namespace=snappy
-        # This will show output like following
-
-        NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                                        AGE
-        snappydata-leader           ClusterIP      None            <none>           5050/TCP                                       5m
-        snappydata-leader-public    LoadBalancer   10.51.255.175   35.232.102.51    5050:31964/TCP,8090:32700/TCP,3768:32575/TCP   5m
-        snappydata-locator          ClusterIP      None            <none>           10334/TCP,1527/TCP                             5m
-        snappydata-locator-public   LoadBalancer   10.51.241.224   104.198.47.162   1527:31957/TCP                                 5m
-        snappydata-server           ClusterIP      None            <none>           1527/TCP                                       5m
-        snappydata-server-public    LoadBalancer   10.51.248.27    35.232.16.4      1527:31853/TCP                                 5m
-
-        ```
-    The output displays the external IP address  of the **snappydata-locator-public** service and the port number for external connections.
-
-2.	Use the external IP address and port of the **snappydata-locator-public** services to connect to SnappyData cluster using JDBC connections. For example, based on the above output, the JDBC URL to be used is *jdbc:snappydata://104.198.47.162:1527/*
-
-You can refer to [SnappyData documentation](http://snappydatainc.github.io/snappydata/howto/connect_using_jdbc_driver/) for an example of JDBC program and for instructions on how to obtain JDBC driver using Maven/SBT co-ordinates.
-
-##<a id='querykubernetes'></a> Execute Queries Using SnappyData Shell
-
-You  can use SnappyData shell to connect to SnappyData and execute your queries. Connect to one of the pods in the cluster and use the SnappyData Shell. Alternatively, you can download the SnappyData distribution from [SnappyData github releases](https://github.com/SnappyDataInc/snappydata/releases). SnappyData shell need not run within the Kubernetes cluster.
-
-**To execute queries in Kubernetes deployment:**
-
-1.	Check the SnappyData services running in the Kubernetes cluster.</br>`kubectl get svc --namespace=snappy`</br>
+		$ cf restage snappy-app
         
-        ```
-        # check the SnappyData services running in K8S cluster
-        kubectl get svc --namespace=snappy
-        # This will show output like following
+        OR
 
-        NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                                        AGE
-        snappydata-leader           ClusterIP      None            <none>           5050/TCP                                       5m
-        snappydata-leader-public    LoadBalancer   10.51.255.175   35.232.102.51    5050:31964/TCP,8090:32700/TCP,3768:32575/TCP   5m
-        snappydata-locator          ClusterIP      None            <none>           10334/TCP,1527/TCP                             5m
-        snappydata-locator-public   LoadBalancer   10.51.241.224   104.198.47.162   1527:31957/TCP                                 5m
-        snappydata-server           ClusterIP      None            <none>           1527/TCP                                       5m
-        snappydata-server-public    LoadBalancer   10.51.248.27    35.232.16.4      1527:31853/TCP                                 5m
-      
-        ```
+        $ cf restart snappy-app
 
-    The output displays the external IP address of the **snappydata-locator-public** services and the port number for external connections. 
-
-2.	Launch SnappyData shell using the the external IP address of the **snappydata-locator-public** services and the port number for external connections and then create tables and execute queries. </br>Following is an example of executing queries using SnappyData shell.
-
-        ```
-        # Connect to snappy-shell
-         bin/snappy
-         snappy> connect client '104.198.47.162:1527';
-
-        # Create tables and execute queries
-         snappy> create table t1(col1 int, col2 int) using column;
-         snappy> insert into t1 values(1, 1);
-         1 row inserted/updated/deleted 
-        ```
-
-##<a id='jobkubernetes'></a> Submit a SnappyData Job
-
-Refer to the [How Tos section](http://snappydatainc.github.io/snappydata/howto/run_spark_job_inside_cluster/) in SnappyData documentation to understand how to submit SnappyData jobs.
-However, for submitting a SnappyData job in Kubernetes deployment, you need to use the **snappydata-leader-public** service that exposes port **8090** to run the jobs.
-
-**To submit a SnappyData job in Kubernetes deployment:**
-
-1.	Check the SnappyData services running in Kubernetes cluster.</br>`kubectl get svc --namespace=snappy`</br>
-
-        ```
-        # check the SnappyData services running in K8S cluster
-        kubectl get svc --namespace=snappy
-        # This will show output like following
-
-        NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                                        AGE
-        snappydata-leader           ClusterIP      None            <none>           5050/TCP                                       5m
-        snappydata-leader-public    LoadBalancer   10.51.255.175   35.232.102.51    5050:31964/TCP,8090:32700/TCP,3768:32575/TCP   5m
-        snappydata-locator          ClusterIP      None            <none>           10334/TCP,1527/TCP                             5m
-        snappydata-locator-public   LoadBalancer   10.51.241.224   104.198.47.162   1527:31957/TCP                                 5m
-        snappydata-server           ClusterIP      None            <none>           1527/TCP                                       5m
-        snappydata-server-public    LoadBalancer   10.51.248.27    35.232.16.4      1527:31853/TCP                                 5m
-        ```
-
-    The output displays the external IP address of **snappydata-leader-public** service which must be noted. 
-3.	Change to SnappyData product directory.</br>`cd $SNAPPY_HOME`</br>
-
-3.	Submit the job using the external IP of the **snappydata-leader-public** service and the port number **8090** in the **--lead** option.</br> Following is an example of submitting a SnappyData Job:
-
-        ```
-        bin/snappy-job.sh submit
-        --app-name CreatePartitionedRowTable
-          --class org.apache.spark.examples.snappydata.CreatePartitionedRowTable
-          --app-jar examples/jars/quickstart.jar
-          --lead 35.232.102.51:8090
-        ```
-       
-##<a id='stopkubernetes'></a> Stop SnappyData Cluster on Kubernetes
-
-To stop the SnappyData cluster on Kubernetes, you must delete the **SnappyData Helm **chart using the `helm delete` command.
-
-```
-$ helm delete --purge snappydata
-```
-The dynamically provisioned volumes and the data in it is retained, even if the chart deployment is deleted.
-
-<p class="note"><strong>Note: </strong> If the chart is deployed again with the same chart name and if the volume exists, then the existing volume is used instead of provisioning a new volume.</p>
-
-##<a id='chartparameters'></a> List of Configuration Parameters for SnappyData Chart
-
-You can modify the **values.yaml**  file to configure the SnappyData chart. The following table lists the configuration parameters available for this chart:
-
-| Parameter| Description | Default |
-| ---------| ------------| --------|
-| `image` |  Docker repo from which the SnappyData Docker image is pulled.    |  `snappydatainc/snappydata`   |
-| `imageTag` |  Tag of the SnappyData Docker image that is pulled. |   |
-| `imagePullPolicy` | Pull policy for the image.  | `IfNotPresent` |
-| `locators.conf` | List of the configuration options that is passed to the locators. | |
-| `locators.resources` | Resource configuration for the locator Pods. User can configure CPU/memory requests and limit the usage. | `locators.requests.memory` is set to `1024Mi`. |
-| `locators.persistence.storageClass` | Storage class that is used while dynamically provisioning a volume. | Default value is not defined so `default` storage class for the cluster is chosen.  |
-| `locators.persistence.accessMode` | [Access mode](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) that is used for the dynamically provisioned volume. | `ReadWriteOnce` |
-| `locators.persistence.size` | Size of the dynamically provisioned volume. | `10Gi` |
-| `servers.replicaCount` | Number of servers that are started in a SnappyData cluster. | `2` |
-| `servers.conf` | List of the configuration options that are passed to the servers. | |
-| `servers.resources` | Resource configuration for the server Pods. You can configure CPU/memory requests and limit the usage. | `servers.requests.memory` is set to `4096Mi` |
-| `servers.persistence.storageClass` | Storage class that is used while dynamically provisioning a volume. | Default value is not defined so `default` storage class for the cluster will be chosen.  |
-| `servers.persistence.accessMode` | [Access mode](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) for the dynamically provisioned volume. | `ReadWriteOnce` |
-| `servers.persistence.size` | Size of the dynamically provisioned volume. | `10Gi` |
-| `leaders.conf` | List of configuration options that can be passed to the leaders. | |
-| `leaders.resources` | Resource configuration for the server pods. You can configure CPU/memory requests and limits the usage. | `leaders.requests.memory` is set to `4096Mi` |
-| `leaders.persistence.storageClass` | Storage class that is used while dynamically provisioning a volume. | Default value is not defined so `default` storage class for the cluster will be chosen.  |
-| `leaders.persistence.accessMode` | [Access mode](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) for the dynamically provisioned volume. | `ReadWriteOnce` |
-| `leaders.persistence.size` | Size of the dynamically provisioned volume. | `10Gi` |
-
-
-The following sample shows the configuration used to start four servers each with a heap size of 2048 MB:
-
-```
-servers:
-  replicaCount: 4
-  ## config options for servers
-  conf: "-heap-size=2048m"
-```
-
-You can specify the SnappyData [configuration parameters](https://snappydatainc.github.io/snappydata/configuring_cluster/configuring_cluster/#configuration-files) in the **servers.conf**, **locators.conf**, and **leaders.conf** files for servers, locators, and leaders respectively.
-
-<a id= kubernetesobjects> </a>
-### Kubernetes Obects Used in SnappyData Chart
-
-This section provides details about the following Kubernetes objects that are used in SnappyData Chart:
-
-*	[Statefulsets for Servers, Leaders, and Locators](#statefulsets)
-
-*	[Services that Expose External Endpoints](#services)
-
-*	[Persistent Volumes](#persistentvolumes)
-
-<a id= statefulsets> </a>
-#### Statefulsets for Servers, Leaders, and Locators
-
-[Kubernetes statefulsets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) are used to manage stateful applications. Statefulsets provide many benefits such as stable and unique network identifiers, stable persistent storage, ordered deployment and scaling, graceful deletion, and rolling updates.
-SnappyData Helm chart deploys statefulsets for servers, leaders, and locators. By default the chart deploys two data servers, one locator, and one leader. Upon deletion of the Helm deployment, each pod gracefully terminates the SnappyData process that is running on it.
-
-<a id= services> </a>
-#### Services that Expose External Endpoints
-
-SnappyData Helm chart creates services to allow you to make JDBC connections, execute Spark jobs, and access
-SnappyData Pulse etc.  Services of the type LoadBalancer have external IP address assigned and can be used to connect from outside of Kubernetes cluster.
-<a id= output> </a>To check the service created for SnappyData deployment, use command `kubectl get svc --namespace=snappy`. The following output is displayed:
-
-
-
-```
-NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)                                        AGE
-snappydata-leader           ClusterIP      None            <none>           5050/TCP                                       5m
-snappydata-leader-public    LoadBalancer   10.51.255.175   35.232.102.51    5050:31964/TCP,8090:32700/TCP,3768:32575/TCP   5m
-snappydata-locator          ClusterIP      None            <none>           10334/TCP,1527/TCP                             5m
-snappydata-locator-public   LoadBalancer   10.51.241.224   104.198.47.162   1527:31957/TCP                                 5m
-snappydata-server           ClusterIP      None            <none>           1527/TCP                                       5m
-snappydata-server-public    LoadBalancer   10.51.248.27    35.232.16.4      1527:31853/TCP                                 5m
-
-```
-In the above output, three services namely **snappydata-leader-public**, **snappydata-locator-public** and **snappydata-server-public** of type **LoadBalancer** are created. These services have external IP addresses assigned and therefore can be accessed from outside Kubernetes. The remaining services that do not have external IP addresses are those that are created for internal use.
- 
-+   **snappydata-leader-public** service exposes port **5050** for SnappyData Pulse and port **8090** to accept SnappyData jobs.
-+   **snappydata-locator-public** service exposes port **1527** to accept JDBC connections.
-
-<a id= persistentvolumes> </a>
-#### Persistent Volumes
-
-A pod in a SnappyData deployment has a persistent volume mounted on it. This volume is dynamically provisioned and is used
-to store data directory for SnappyData. On each pod, the persistent volume is mounted on path `/opt/snappydata/work`. These volumes and the data in it is retained even if the chart deployment is deleted.
-
-##<a id='accesslogs'></a> Accessing Logs
-
-You can access the logs when the [SnappyData cluster is running](#running) as well as when the [SnappyData cluster is not running](#notrunning). 
-
-<a id= running> </a>
-### Access Logs when SnappyData Cluster is Running
-
-When a SnappyData cluster is running, you can open a session for a pod using `kubectl` command and then view the logs.
-The following example shows how to access logs of **snappydata-server-0**:
-
-```
-# Connect to snappydata-server-0 pod and open a shell.
-$ kubectl exec -it snappydata-server-0 --namespace snappy -- /bin/bash
-
-# Switch to Snappydata work directory and view the logs.
-$ cd /opt/snappydata/work
-$ ls 
-```
-<a id= notrunning> </a>
-### Access Logs when SnappyData Cluster is not Running
-
-When SnappyData cluster is not running, you can access the volumes used in SnappyData with a utility script `snappy-debug-pod.sh` located in the **utils** directory of [Spark on k8s](https://github.com/SnappyDataInc/spark-on-k8s/tree/master/utils) repository.
-This script launches a pod in the Kubernetes cluster with persistent volumes, specified via `--pvc` option, mounted on it and then returns a shell prompt. Volumes are mounted on the path starting with **/data0 (volume1 on /data0 and so on)**.
-
-<!-- The following example shows, how to access the logs when the SnappyData Cluster is not running: -->
-In the following example, the names of the persistent volume claims used by the cluster are retrieved and passed to the `snappy-debug-pod.sh` script to be mounted on the pod.
-
-```
-# Get the names of persistent volume claims used by SnappyData cluster installed in a namespace
-# called *snappy*. The PVCs used by SnappyData are prefixed with 'snappy-disk-claim-'.
-
-$ kubectl get  pvc --namespace snappy
-NAME                                     STATUS    VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-snappy-disk-claim-snappydata-leader-0    Bound     pvc-17cf9834-68c3-11e8-ab38-42010a8001a3   10Gi       RWO            standard       50d
-snappy-disk-claim-snappydata-locator-0   Bound     pvc-17d75411-68c3-11e8-ab38-42010a8001a3   10Gi       RWO            standard       50d
-snappy-disk-claim-snappydata-server-0    Bound     pvc-17de4f1a-68c3-11e8-ab38-42010a8001a3   10Gi       RWO            standard       50d
-snappy-disk-claim-snappydata-server-1    Bound     pvc-226d778d-68c3-11e8-ab38-42010a8001a3   10Gi       RWO            standard       50d
-
-# To view logs for server-0 and server-1, use PVCs 'snappy-disk-claim-snappydata-server-0' and snappy-disk-claim-snappydata-server-1'
-
-$ ./utils/snappy-debug-pod.sh --pvc snappy-disk-claim-snappydata-server-0,snappy-disk-claim-snappydata-server-1 --namespace snappy
-Volume for snappy-disk-claim-snappydata-server-0 will be mounted on /data0
-Volume for snappy-disk-claim-snappydata-server-1 will be mounted on /data1
-Launching the POD
-If you don't see a command prompt, try pressing enter.
-bash-4.1# 
-```
-
-In the above example, the second command opens a session with bash prompt for the pod on which the volumes corresponding to the mentioned PVCs are mounted on paths such as **/data0**, **/data1** and so on.
-
-You can then examine the logs in these mounted paths. For example:
-
-```
-bash-4.1# ls /data1
-lost+found  members.txt  snappydata-server-1
-bash-4.1# ls /data0
-lost+found  members.txt  snappydata-server-0
-bash-4.1# ls /data0/snappydata-server-0/
-bash-4.1# ls /data0/snappydata-server-0/*.*log
-```
-
-##<a id='loglevel'></a> Configuring Log Level
-You can provide a **log4j.properties** file while installing the SnappyData Helm chart. A template file **log4j.properties.template** is provided in the `charts/snappydata/conf/` directory. This template file can be renamed and used to configure log level as shown in the following example:
-
-```
-$ cd charts/snappydata/conf/
-# copy the template file and edit it to configure log level
-$ cp log4j.properties.template log4j.properties
-```
-
-When SnappyData chart is installed, the **log4.properties** file  will be used to configure the log level.
-
-<a id= deletehelm> </a>
-
+    The details include locator hostname and port, lead hostname and jobserver port among other parameters.
 
